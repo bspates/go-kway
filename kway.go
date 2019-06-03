@@ -44,14 +44,12 @@ func (k *Kway) pickWorker() *Worker {
 
 func (w *Worker) start() {
 	for wa := range w.in {
-		wa.action.payload(wa.task.Payload)
-		err := wa.action.execute()
+		res, err := wa.action.execute(wa.task.Payload)
 		if err != nil {
 			wa.task.Status = STATUS_ERROR
 			wa.task.Result = err
 			fmt.Println("error: ", err)
 		} else {
-			res := wa.action.result()
 			wa.task.Result = res
 			wa.task.Status = STATUS_COMPLETED
 		}
