@@ -9,17 +9,17 @@ import (
 )
 
 type Task struct {
-	TaskId      int `json:"task_id"`
+	TaskId      int
 	Created     time.Time
 	Modified    pq.NullTime
 	Name        string
 	Pipe        []string
-	Status      string `json:"status"`
+	Status      string
 	Attempts    int
-	MaxAttempts int `json:"max_attempts"`
+	MaxAttempts int
 	Backoff     time.Time
 	Payload     []byte
-	Result      interface{} `json:"result"`
+	Result      interface{}
 }
 
 type Registry map[string]Action

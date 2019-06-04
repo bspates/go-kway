@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	//"fmt"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -12,8 +12,18 @@ const STATUS_ERROR string = "error"
 const STATUS_COMPLETED string = "completed"
 const STATUS_IN_PROGRESS string = "in_progress"
 
+type resStruct struct {
+	TaskId int         `json:"task_id"`
+	Status string      `json:"status"`
+	Result interface{} `json:"result"`
+}
+
 func result(db *sqlx.DB, tasks []*Task) error {
-	jsonTasks, err := json.Marshal(tasks)
+	results := make([]resStruct, len(tasks))
+	for i, task := range tasks {
+		results[i] = resStruct{task.TaskId, task.Status, task.Result}
+	}
+	jsonTasks, err := json.Marshal(results)
 	jsonStr := string(jsonTasks)
 
 	if err != nil {
@@ -23,17 +33,16 @@ func result(db *sqlx.DB, tasks []*Task) error {
 WITH updates AS (
 	SELECT 
 		m->>'task_id' AS task_id, 
-    m->>'status' AS status,
+		m->>'status' AS status,
 		m->>'result' AS result
 	FROM json_array_elements($1::JSON) AS m 	
-), doit AS (
+)
 UPDATE tasks t
 SET status = u.status::TASK_STATUS,
 	result = array_append(t.result, u.result::JSONB)
 	backoff = CURRENT_TIMESTAMP + INTERVAL '2 seconds' ^ t.attempts 
 FROM updates u 
-WHERE u.task_id::BIGINT = t.task_id
-) SELECT task_id, status, result FROM updates;`
+WHERE u.task_id::BIGINT = t.task_id;`
 
 	db.QueryRow(query, jsonStr)
 	return nil
