@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
@@ -29,23 +30,24 @@ func result(db *sqlx.DB, tasks []*Task) error {
 	if err != nil {
 		return err
 	}
+
 	query := `
 WITH updates AS (
 	SELECT 
-		m->>'task_id' AS task_id, 
+		m->>'task_id' AS task_id,
 		m->>'status' AS status,
 		m->>'result' AS result
-	FROM json_array_elements($1::JSON) AS m 	
+	FROM json_array_elements($1::JSON) as m
 )
 UPDATE tasks t
 SET status = u.status::TASK_STATUS,
-	result = array_append(t.result, u.result::JSONB)
-	backoff = CURRENT_TIMESTAMP + INTERVAL '2 seconds' ^ t.attempts 
-FROM updates u 
-WHERE u.task_id::BIGINT = t.task_id;`
+	result = array_append(t.result, u.result::JSONB),
+	backoff = CURRENT_TIMESTAMP + (2 ^ t.attempts) * INTERVAL '1 second'
+FROM updates u
+WHERE u.task_id ::BIGINT = t.task_id;`
 
-	db.QueryRow(query, jsonStr)
-	return nil
+	_, err = db.Exec(query, jsonStr)
+	return err
 }
 
 func dequeue(db *sqlx.DB, concurrency int) ([]*Task, error) {
